@@ -748,8 +748,30 @@
         if (typeof firebase !== 'undefined' && firebaseConfig.apiKey !== "AIzaSyYOUR_API_KEY_HERE") {
             firebase.initializeApp(firebaseConfig);
         }
+        // 1. Create a function to handle the fetching
+        async function loadKey() {
+            try {
+                // 2. Fetch the JSON file
+                const response = await fetch('config.json');
+                
+                // 3. Convert the response to a JavaScript object
+                const data = await response.json();
+                
+                // 4. Extract your key and use it
+                const key = data.api_key;
+                
+                console.log("Your key loaded successfully:", key);
+                // Put the rest of your code that needs the key inside here
+                
+            } catch (error) {
+                console.error("Error reading the JSON file:", error);
+            }
+        }
 
-        const GEMINI_API_KEY = 'AQ.Ab8RN6Jv7L51PC4u-OpAXgXaK00iA0adSM4mw79sT3lSiwI6Dg';
+        // 5. Run the function when the page loads
+        loadKey();
+
+        const GEMINI_API_KEY = key;
         let base64Image = "";
         let fullImageURI = ""; 
         let currentCoordinates = null; 
