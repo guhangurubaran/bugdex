@@ -1,0 +1,1608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BugDex</title>
+    <link rel="icon" type="image/png" href="mantis.png">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <style>
+        :root {
+            --primary: #2d6a4f;
+            --secondary: #40916c;
+            --accent: #52b788;
+            --bg: #d8f3dc;
+            --text-dark: #1b4332;
+            --text-light: #f4fff8;
+            --gold: #ffb703;
+            --danger: #d90429;
+            --bronze: #cd7f32;
+            --silver: #c0c0c0;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-dark);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        .header {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .logo-title-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 5px;
+        }
+        .app-logo {
+            width: 45px;
+            height: 45px;
+            object-fit: contain;
+        }
+        h1 {
+            font-size: 3rem;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin: 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        .header p {
+            margin: 0;
+            color: var(--secondary);
+            font-weight: bold;
+        }
+        .workspace {
+            display: flex;
+            flex-direction: row;
+            width: 100%;
+            max-width: 850px;
+            align-items: flex-start;
+            gap: 0;
+        }
+        nav {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding-top: 20px;
+            z-index: 2;
+        }
+        .nav-tab {
+            background-color: var(--secondary);
+            color: var(--text-light);
+            border: none;
+            padding: 15px 20px;
+            border-radius: 10px 0 0 10px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1rem;
+            text-align: left;
+            white-space: nowrap;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: -2px 4px 6px rgba(0,0,0,0.1);
+            margin-right: -2px;
+        }
+        .nav-tab:hover {
+            background-color: var(--primary);
+            padding-left: 25px;
+        }
+        .nav-tab.active-tab {
+            background-color: white;
+            color: var(--primary);
+            transform: scale(1.05) translateX(-4px);
+            box-shadow: -6px 6px 12px rgba(0,0,0,0.15);
+            pointer-events: none;
+            border-left: 5px solid var(--accent);
+        }
+        .container {
+            background-color: white;
+            border-radius: 0 15px 15px 15px;
+            box-shadow: -4px 8px 16px rgba(0,0,0,0.1);
+            padding: 30px;
+            flex: 1;
+            box-sizing: border-box;
+            min-width: 0;
+            z-index: 1;
+        }
+        .screen { display: none; }
+        .screen.active { display: block; }
+        .upload-box {
+            border: 3px dashed var(--secondary);
+            border-radius: 10px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background-color: #f8fff9;
+            margin-bottom: 20px;
+        }
+        .upload-box:hover {
+            background-color: var(--bg);
+            border-color: var(--primary);
+        }
+        .upload-box input[type="file"] { display: none; }
+        .upload-icon { font-size: 40px; margin-bottom: 10px; }
+        .upload-text { font-size: 1.2rem; font-weight: bold; color: var(--primary); }
+        #imagePreview {
+            max-width: 100%;
+            border-radius: 10px;
+            display: none;
+            margin: 0 auto 20px auto;
+            border: 4px solid var(--accent);
+        }
+        .btn {
+            background-color: var(--primary);
+            color: var(--text-light);
+            border: none;
+            padding: 12px 24px;
+            font-size: 1.1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+            transition: background 0.3s;
+            margin-top: 10px;
+        }
+        .btn:hover { background-color: #1b4332; }
+        .btn:disabled { background-color: #95d5b2; cursor: not-allowed; }
+        .btn-alt {
+            background-color: #f8fff9;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+        }
+        .btn-alt:hover { background-color: var(--bg); color: var(--text-dark); }
+        .btn-danger {
+            background-color: var(--danger);
+            color: white;
+        }
+        .btn-danger:hover { background-color: #b3001b; }
+        #loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+            font-weight: bold;
+            color: var(--secondary);
+        }
+        .data-group { margin-bottom: 15px; }
+        .data-label { font-weight: bold; color: var(--primary); font-size: 0.9rem; text-transform: uppercase; }
+        .data-value { font-size: 1.1rem; background: #f0fdf4; padding: 8px 12px; border-radius: 6px; border-left: 4px solid var(--accent); margin-top: 4px; }
+        .hero-heading {
+            font-size: 2rem;
+            color: var(--primary);
+            margin: 10px 0;
+            border-bottom: 3px solid var(--accent);
+            padding-bottom: 5px;
+            font-style: italic;
+            text-align: center;
+        }
+        .option-panel-heading {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #ffeeba;
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        .selection-matrix {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin: 20px 0;
+        }
+        .selection-card {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: #fff;
+        }
+        .selection-card:hover {
+            border-color: var(--accent);
+            background-color: #f4fff8;
+            transform: translateX(4px);
+        }
+        .selection-card img {
+            width: 70px;
+            height: 70px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            background-color: #fafafa;
+        }
+        .selection-details { flex: 1; }
+        .selection-title { font-weight: bold; font-size: 1.2rem; color: var(--primary); font-style: italic; }
+        .selection-pct {
+            background-color: var(--secondary);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        .dex-stats-bar {
+            background: var(--bg);
+            border: 2px solid var(--primary);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            color: var(--text-dark);
+            margin-bottom: 15px;
+        }
+        .dex-search-input {
+            width: 100%;
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            border: 2px solid var(--secondary);
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 1rem;
+            color: var(--text-dark);
+            background-color: #f8fff9;
+        }
+        #dexMap {
+            width: 100%;
+            height: 450px;
+            border-radius: 12px;
+            border: 2px solid var(--secondary);
+            z-index: 1;
+        }
+        .dex-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .dex-card {
+            border: 1px solid var(--accent);
+            background-color: #f8fff9;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .dex-header-row {
+            display: flex;
+            gap: 15px;
+            cursor: pointer;
+            align-items: center;
+        }
+        .dex-summary-info { flex: 1; }
+        .dex-card h3 { margin: 0 0 5px 0; color: var(--primary); font-size: 1.5rem; font-style: italic;}
+        .dex-meta { font-size: 0.85rem; color: #555; line-height: 1.4; }
+        .bug-counter {
+            background-color: var(--primary);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            display: inline-block;
+            margin-top: 5px;
+        }
+        .gallery-wrapper {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding-bottom: 5px;
+            max-width: 150px;
+        }
+        .gallery-wrapper img {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 8px;
+            flex-shrink: 0;
+            border: 2px solid var(--secondary);
+        }
+        .dex-dropdown-content { display: none; margin-top: 15px; border-top: 1px dashed var(--accent); padding-top: 15px; }
+        .dex-dropdown-content.open { display: block; }
+        .extended-item { margin-bottom: 10px; font-size: 0.9rem; }
+        .extended-item b { color: var(--primary); text-transform: uppercase; font-size: 0.75rem; display: block; margin-bottom: 2px; }
+        .level-container {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #f4fff8 0%, #d8f3dc 100%);
+            border-radius: 15px;
+            border: 3px solid var(--primary);
+            margin-bottom: 25px;
+        }
+        .level-badge {
+            font-size: 4.5rem;
+            font-weight: 900;
+            color: var(--primary);
+            text-shadow: 2px 3px 0px var(--accent);
+            margin: 10px 0;
+        }
+        .xp-bar-outer {
+            width: 100%;
+            height: 24px;
+            background-color: #e0e0e0;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2px solid var(--text-dark);
+            margin: 15px 0;
+        }
+        .xp-bar-inner {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent) 0%, var(--gold) 100%);
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .level-track {
+            margin-top: 25px;
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 30px 20px;
+            border: 2px solid var(--secondary);
+            display: flex;
+            overflow-x: auto;
+            gap: 25px;
+            align-items: center;
+            -webkit-overflow-scrolling: touch; 
+        }
+        .level-track::-webkit-scrollbar {
+            height: 10px;
+        }
+        .level-track::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+            border-radius: 5px;
+        }
+        .level-track::-webkit-scrollbar-thumb {
+            background: var(--accent); 
+            border-radius: 5px;
+        }
+        .track-node {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-width: 160px;
+            padding: 20px 15px;
+            border-radius: 15px;
+            border: 3px solid #ccc;
+            position: relative;
+            transition: transform 0.3s ease;
+            background-color: #fafafa;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .track-node:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            right: -28px;
+            width: 25px;
+            height: 6px;
+            background-color: #ccc;
+            z-index: 1;
+        }
+        .track-node.completed {
+            border-color: var(--primary);
+            background-color: #f4fff8;
+        }
+        .track-node.completed:not(:last-child)::after {
+            background-color: var(--primary);
+        }
+        .track-node.current {
+            border-color: var(--gold);
+            background-color: #fff8e7;
+            box-shadow: 0 6px 16px rgba(255, 183, 3, 0.3);
+            transform: scale(1.1); 
+            z-index: 2;
+        }
+        .track-node.locked {
+            border-color: #eee;
+            color: #999;
+            opacity: 0.6;
+        }
+        .node-number {
+            font-size: 1.5rem;
+            font-weight: 900;
+            margin-bottom: 8px;
+            color: var(--text-dark);
+        }
+        .node-info { 
+            white-space: normal; 
+            font-size: 0.85rem; 
+            line-height: 1.3;
+        }
+        .node-xp { 
+            font-size: 0.9rem; 
+            color: #555; 
+            margin-top: 6px; 
+            font-weight: bold;
+        }
+        .interaction-box {
+            background: #f0fdf4;
+            border: 2px solid var(--accent);
+            border-radius: 10px;
+            padding: 18px;
+            margin-top: 25px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.03);
+        }
+        .interaction-box h4 {
+            margin: 0 0 8px 0;
+            color: var(--primary);
+            font-size: 1.1rem;
+        }
+        .qa-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--secondary);
+            border-radius: 6px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+            font-size: 0.95rem;
+        }
+        .qa-response {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid var(--accent);
+            margin-top: 10px;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            color: var(--text-dark);
+        }
+        .challenge-card {
+            background: white;
+            border: 3px solid var(--secondary);
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.06);
+        }
+        .challenge-img-frame {
+            width: 100%;
+            max-height: 260px;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 15px 0;
+            border: 3px solid var(--accent);
+            background-color: #eee;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .challenge-img-frame img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .badge-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .badge-card {
+            background: #eee;
+            border-radius: 10px;
+            padding: 15px 10px;
+            text-align: center;
+            opacity: 0.4;
+            filter: grayscale(100%);
+            transition: all 0.3s ease;
+            border: 2px solid #ccc;
+        }
+        .badge-card.unlocked {
+            opacity: 1;
+            filter: grayscale(0%);
+            border-color: var(--gold);
+            box-shadow: 0 4px 8px rgba(255, 183, 3, 0.25);
+            background: linear-gradient(135deg, #fff 0%, #fff8e7 100%);
+        }
+        .badge-card.bronze-tier { border-color: var(--bronze); }
+        .badge-card.silver-tier { border-color: var(--silver); }
+        .badge-card.gold-tier { border-color: var(--gold); }
+        .badge-icon { font-size: 2.5rem; margin-bottom: 5px; }
+        .badge-title { font-weight: bold; font-size: 0.9rem; color: var(--text-dark); margin-bottom: 3px; }
+        .badge-desc { font-size: 0.7rem; color: #666; }
+        .badge-progress { font-size: 0.75rem; color: var(--primary); font-weight: bold; margin-top: 5px; display: block; }
+        input[type="email"], input[type="password"], input[type="tel"], input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0 15px 0;
+            border: 1px solid var(--secondary);
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+        @media (max-width: 650px) {
+            .workspace { flex-direction: column; }
+            nav {
+                flex-direction: row;
+                width: 100%;
+                justify-content: flex-start;
+                padding-top: 0;
+                margin-bottom: -2px;
+                overflow-x: auto;
+            }
+            .nav-tab {
+                border-radius: 10px 10px 0 0;
+                padding: 10px 15px;
+                font-size: 0.9rem;
+            }
+            .nav-tab.active-tab {
+                transform: scale(1.03) translateY(-4px);
+                border-left: none;
+                border-top: 4px solid var(--accent);
+            }
+            .container { border-radius: 0 0 15px 15px; width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo-title-container">
+            <img src="mantis.png" alt="BugDex Logo" class="app-logo">
+            <h1>BugDex</h1>
+        </div>
+        <p>Identify & Log Insects into your personal collection</p>
+    </div>
+    
+    <div class="workspace">
+        <nav id="mainNav">
+            <button id="tab_scannerScreen" class="nav-tab active-tab" onclick="showScreen('scannerScreen')">📷 BugScan</button>
+            <button id="tab_dailyScreen" class="nav-tab" onclick="showScreen('dailyScreen')">📅 Daily</button>
+            <button id="tab_dexScreen" class="nav-tab" onclick="showScreen('dexScreen')">📖 My Dex</button>
+            <button id="tab_mapScreen" class="nav-tab" onclick="showScreen('mapScreen')">🗺️ BugMap</button>
+            <button id="tab_levelScreen" class="nav-tab" onclick="showScreen('levelScreen')">📊 Level</button>
+            <button id="tab_badgeScreen" class="nav-tab" onclick="showScreen('badgeScreen')">🏆 Badges</button>
+            <button id="tab_accountScreen" class="nav-tab" onclick="showScreen('accountScreen')">👤 Account</button>
+            <button id="tab_aboutScreen" class="nav-tab" onclick="showScreen('aboutScreen')">ℹ️ About</button>
+        </nav>
+
+        <div class="container">
+            <div id="scannerScreen" class="screen active">
+                <div class="upload-box" id="dropZone" onclick="document.getElementById('fileInput').click()">
+                    <div class="upload-icon">📸</div>
+                    <div class="upload-text">Click to Scan an Insect</div>
+                    <input type="file" id="fileInput" accept="image/*" capture="environment">
+                </div>
+
+                <img id="imagePreview" alt="Insect Preview">
+                <button id="analyzeBtn" class="btn" style="display: none;">Identify Bug</button>
+                <div id="loading">Consulting the database... 🔍</div>
+
+                <div id="selectionInterface" style="display: none; margin-top: 20px;">
+                    <div class="option-panel-heading">
+                        Not fully sure about this specimen. Please select the correct match below:
+                    </div>
+                    <h3 style="color: var(--primary); margin-bottom: 5px;">Select the Closest Match:</h3>
+                    <div id="selectionMatrix" class="selection-matrix"></div>
+                </div>
+
+                <div id="results" style="display: none; margin-top: 20px;">
+                    <div style="text-align:center; color: var(--secondary); font-weight:bold;" id="scanStatusMsg">Species Successfully Saved!</div>
+                    <h2 class="hero-heading" id="resGenus">Genus Name</h2>
+                    
+                    <div class="data-group"><div class="data-label">Family</div><div class="data-value" id="resFamily">-</div></div>
+                    <div class="data-group"><div class="data-label">Distribution</div><div class="data-value" id="resDist">-</div></div>
+                    <div class="data-group"><div class="data-label">Life Cycle</div><div class="data-value" id="resLifeCycle">-</div></div>
+                    <div class="data-group"><div class="data-label">Behavior</div><div class="data-value" id="resBehavior">-</div></div>
+                    <div class="data-group"><div class="data-label">Diet</div><div class="data-value" id="resDiet">-</div></div>
+                    <div class="data-group"><div class="data-label">Danger Level</div><div class="data-value" id="resDanger">-</div></div>
+                    <div class="data-group"><div class="data-label">Fun Facts</div><div class="data-value" id="resFunFacts">-</div></div>
+
+                    <button class="btn btn-share" id="shareSightingBtn" style="margin-bottom: 20px;">Share Sighting 🔗</button>
+                    
+                    <div class="interaction-box">
+                        <h4>❓ Ask Extra Questions</h4>
+                        <p style="font-size: 0.85rem; margin-top:-4px; color:#555;">Want to know more? Ask any custom question about this insect genus:</p>
+                        <input type="text" id="extraQuestionInput" class="qa-input" placeholder="Is it nocturnal? How long does it live?">
+                        <button id="askExtraBtn" class="btn" onclick="askFollowUpQuestion()">Submit</button>
+                        <div id="extraQuestionResponse" class="qa-response" style="display: none;"></div>
+                        
+                        <hr style="border:0; border-top:1px dashed var(--accent); margin:18px 0;">
+                        
+                        <h4>🔧 Wrong ID or Missing Data?</h4>
+                        <p style="font-size: 0.85rem; margin-top:-4px; color:#555;">If the catalog matching was incorrect, type the correct Genus classification below to adjust it manually:</p>
+                        <input type="text" id="manualOverrideInput" class="qa-input" placeholder="Enter true Genus (e.g., Apis, Mantis)">
+                        <button id="overrideBtn" class="btn btn-alt" onclick="applyManualOverride()">Correct Log Assignment</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="dailyScreen" class="screen">
+                <h2 style="color: var(--primary); margin-top: 0; text-align: center;">Daily Expedition</h2>
+                <div class="challenge-card">
+                    <div id="challengeStatusBadge" style="font-weight: bold; font-size: 1.1rem; color: #ffb703; margin-bottom: 10px;">⚠️ Challenge Active</div>
+                    <h2 id="targetGenusDisplay" style="margin: 5px 0; font-style: italic; font-size: 2.2rem; color: var(--primary);">Loading target...</h2>
+                    <p style="margin-bottom: 20px; font-size: 0.9rem; color: #666;">Find and photograph this insect today to secure the bonus XP payout!</p>
+                    
+                    <div style="background: var(--bg); padding: 12px; border-radius: 8px; font-weight: bold; color: var(--text-dark);">
+                        Completion Bounty: <span style="color: var(--primary)">+4,000 XP</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="dexScreen" class="screen">
+                <div class="dex-stats-bar">
+                    Total Unique Species Found: <span id="uniqueCounter" style="color:var(--primary); font-size:1.2rem;">0</span>
+                </div>
+                <input type="text" id="dexSearch" class="dex-search-input" placeholder="🔍 Search by genus or family name..." oninput="filterDex()">
+                <div id="dexContainer" class="dex-grid"></div>
+            </div>
+
+            <div id="mapScreen" class="screen">
+                <h2 style="color: var(--primary); margin-top: 0; text-align: center;">Discovery Locations Map</h2>
+                <div id="dexMap"></div>
+            </div>
+
+            <div id="levelScreen" class="screen">
+                <h2 style="color: var(--primary); margin-top: 0; text-align: center;">Ranger Profile Status</h2>
+                <div class="level-container">
+                    <div style="text-transform: uppercase; font-weight: bold; font-size: 0.9rem; letter-spacing: 1px; color: var(--secondary);">Current Level</div>
+                    <div class="level-badge" id="lvlNumber">1</div>
+                    
+                    <div class="xp-bar-outer">
+                        <div class="xp-bar-inner" id="lvlBar"></div>
+                    </div>
+                    <div style="font-weight: bold; font-size: 1.1rem; color: var(--text-dark);" id="lvlXpText">0 / 100 XP</div>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; padding: 10px; background: #f8fff9; border-radius: 8px; border: 1px dashed var(--accent); margin-bottom: 15px;">
+                    <span><b>Lifetime Experience Points Pool:</b></span>
+                    <span id="lvlTotalPoolText" style="color: var(--primary); font-weight: bold;">0 XP</span>
+                </div>
+
+                <div id="levelTrackContainer" class="level-track"></div>
+            </div>
+
+            <div id="badgeScreen" class="screen">
+                <h2 style="color: var(--primary); text-align: center; margin-top: 0;">Achievements</h2>
+                <div id="badgeContainer" class="badge-grid"></div>
+            </div>
+
+            <div id="accountScreen" class="screen">
+                <h2 style="color: var(--primary); margin-top: 0;">Account Management</h2>
+                <div id="authSection">
+                    <p>Sign in to save your Dex data online.</p>
+                    <label><b>Email Address</b></label>
+                    <input type="email" id="authEmail" placeholder="name@example.com">
+                    
+                    <label><b>Password</b></label>
+                    <input type="password" id="authPassword" placeholder="••••••••">
+                    
+                    <button class="btn" onclick="alert('Account system ready to connect!')">Sign In / Register</button>
+
+                    <div style="text-align: center; margin: 15px 0; color: #666; font-size: 0.9rem; font-weight: bold; position: relative;">
+                        <span style="background: #fff; padding: 0 10px; z-index: 1; position: relative;">OR</span>
+                        <hr style="position: absolute; top: 50%; left: 0; right: 0; border: 0; border-top: 1px solid #ccc; margin: 0; z-index: 0;">
+                    </div>
+
+                    <button class="btn" style="background-color: #fff; color: #757575; border: 1px solid #ddd; display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 15px;" onclick="signInWithGoogle()">
+                        <img src="https://fonts.gstatic.com/s/i/productlogos/googleg/v6/web-24dp/copy_of_24dp.png" alt="Google Logo" style="width: 18px; height: 18px;">
+                        Sign in with Google
+                    </button>
+
+                    <div id="phoneAuthContainer">
+                        <label><b>Phone Number</b></label>
+                        <input type="tel" id="authPhone" placeholder="+11234567890">
+                        <button class="btn btn-alt" id="sendCodeBtn" onclick="signInWithPhone()">Send Verification Code</button>
+                        
+                        <div id="recaptcha-container" style="margin-top: 10px;"></div>
+
+                        <div id="verificationCodeDiv" style="display: none; margin-top: 15px;">
+                            <label><b>Verification Code</b></label>
+                            <input type="text" id="authVerificationCode" placeholder="123456">
+                            <button class="btn" onclick="verifyPhoneCode()">Verify Code</button>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-alt" style="margin-top: 8px;" onclick="showScreen('scannerScreen')">Continue as Guest</button>
+                    
+                    <hr style="margin: 30px 0; border: 0; border-top: 1px dashed #ccc;">
+                    <button class="btn btn-danger" onclick="clearAllData()">Reset App Data</button>
+                </div>
+            </div>
+
+            <div id="aboutScreen" class="screen">
+                <h2 style="color: var(--primary); margin-top: 0; text-align: center;">About BugDex 🌿</h2>
+                <div style="background-color: #f8fff9; padding: 20px; border-radius: 12px; border: 2px solid var(--accent); line-height: 1.6;">
+                    <p>
+                        Welcome to BugDex! This app was created to help nature lovers, students, and curious minds identify, explore, and map the incredible world of insects right in their neighborhoods.                         By leveraging artificial intelligence alongside community-driven taxonomy, BugDex brings data like lifecycles, global distribution patterns, and safety details straight to your screen.
+                    </p>
+                    
+                    <hr style="margin: 25px 0; border: 0; border-top: 2px dashed var(--secondary); opacity: 0.5;">
+                    
+                    <div style="text-align: center;">
+                        <h3 style="color: var(--primary); margin-top: 0;">Report a Bug / Feedback</h3>
+                        <p style="margin-bottom: 15px;">Notice something broken or have an idea to improve the app? Let me know!</p>
+                        <a href="mailto:guhan.echo@gmail.com" class="btn" style="display: inline-block; text-decoration: none; width: auto; padding: 10px 20px;">
+                            guhan.echo@gmail.com
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyYOUR_API_KEY_HERE",
+            authDomain: "your-app.firebaseapp.com",
+            projectId: "your-app",
+            storageBucket: "your-app.appspot.com",
+            messagingSenderId: "1234567890",
+            appId: "1:12345:web:abcde12345"
+        };
+        
+        if (typeof firebase !== 'undefined' && firebaseConfig.apiKey !== "AIzaSyYOUR_API_KEY_HERE") {
+            firebase.initializeApp(firebaseConfig);
+        }
+
+        const GEMINI_API_KEY = 'AQ.Ab8RN6Jv7L51PC4u-OpAXgXaK00iA0adSM4mw79sT3lSiwI6Dg';
+        let base64Image = "";
+        let fullImageURI = ""; 
+        let currentCoordinates = null; 
+        let mapInstance = null; 
+        let currentImageHash = "";
+        let phoneConfirmationResult = null;
+
+        const DAILY_POOLS = [
+            "Bombus", "Polistes", "Apis", "Danaus", "Cicindela", "Papilio", "Vespula", "Mantis", 
+            "Acrididae", "Gryllus", "Lucanus", "Harmonia", "Phyllium", "Camponotus", "Formica", 
+            "Megasoma", "Dynastes", "Tenodera", "Anax", "Libellula", "Nepa", "Ranatra", "Tabanus", 
+            "Culex", "Musca", "Calliphora", "Apis", "Bombus", "Chrysopa", "Calosoma"
+        ];
+
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => { currentCoordinates = { lat: position.coords.latitude, lng: position.coords.longitude }; },
+                () => { console.log("Location access bypassed."); }
+            );
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            if (typeof firebase !== 'undefined' && document.getElementById('recaptcha-container')) {
+                window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+                    'size': 'invisible'
+                });
+            }
+        });
+
+        async function signInWithGoogle() {
+            if (typeof firebase === 'undefined') {
+                alert("Firebase SDK not initialized properly.");
+                return;
+            }
+            const provider = new firebase.auth.GoogleAuthProvider();
+            try {
+                const result = await firebase.auth().signInWithPopup(provider);
+                alert(`Successfully signed in as ${result.user.displayName}!`);
+            } catch (error) {
+                console.error("Google Auth failed:", error);
+                alert("Google Sign-In failed: " + error.message);
+            }
+        }
+
+        async function signInWithPhone() {
+            if (typeof firebase === 'undefined') {
+                alert("Firebase SDK not initialized properly.");
+                return;
+            }
+            const phoneNumber = document.getElementById('authPhone').value.trim();
+            if (!phoneNumber) {
+                alert("Please enter a valid phone number (include country code, e.g., +15551234567)");
+                return;
+            }
+            const appVerifier = window.recaptchaVerifier;
+            try {
+                phoneConfirmationResult = await firebase.auth().signInWithPhoneNumber(phoneNumber, appVerifier);
+                document.getElementById('verificationCodeDiv').style.display = 'block';
+                document.getElementById('sendCodeBtn').innerText = "Resend Code";
+                alert("Verification SMS text message code sent!");
+            } catch (error) {
+                console.error("SMS Code Dispatch Failed:", error);
+                alert("Failed to send SMS: " + error.message);
+            }
+        }
+
+        async function verifyPhoneCode() {
+            const code = document.getElementById('authVerificationCode').value.trim();
+            if (!code || !phoneConfirmationResult) {
+                alert("Please enter the 6-digit verification code sent to your mobile device.");
+                return;
+            }
+            try {
+                const result = await phoneConfirmationResult.confirm(code);
+                alert("Phone number verified successfully!");
+            } catch (error) {
+                console.error("Code match checking failed:", error);
+                alert("Invalid verification code. Please check and try again.");
+            }
+        }
+
+        function getDailyTarget() {
+            const today = new Date();
+            const dateSeedString = today.getFullYear() + "-" + (today.getMonth() + 1) + "-" + today.getDate();
+            let charCodeSum = 0;
+            for(let i = 0; i < dateSeedString.length; i++) { charCodeSum += dateSeedString.charCodeAt(i); }
+            return {
+                genus: DAILY_POOLS[charCodeSum % DAILY_POOLS.length],
+                dateStamp: dateSeedString
+            };
+        }
+
+        function generateStringHash(str) {
+            let hash = 0;
+            if (str.length === 0) return hash.toString();
+            for (let i = 0; i < str.length; i++) {
+                const chr = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + chr;
+                hash |= 0;
+            }
+            return hash.toString();
+        }
+
+        async function fetchWikipediaImage(genusName) {
+            try {
+                const apiURL = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&prop=pageimages&redirects=1&titles=${encodeURIComponent(genusName)}&pithumbsize=200`;
+                const response = await fetch(apiURL);
+                const data = await response.json();
+                if (data?.query?.pages) {
+                    const pages = data.query.pages;
+                    const pageId = Object.keys(pages)[0];
+                    if (pageId !== "-1" && pages[pageId].thumbnail) {
+                        return pages[pageId].thumbnail.source;
+                    }
+                }
+            } catch (e) {
+                console.error("Wikipedia image pull errored", e);
+            }
+            return "https://images.unsplash.com/photo-1560114928-40f1f1eb26a0?auto=format&fit=crop&w=300&q=80";
+        }
+
+        async function fetchChallengeImage(genusName) {
+            const targetImg = document.getElementById('challengeImg');
+            const url = await fetchWikipediaImage(genusName);
+            if (targetImg) targetImg.src = url;
+        }
+
+        function calculateProfileMetrics() {
+            let dex = [];
+            try { dex = JSON.parse(localStorage.getItem('guestBugDex')) || []; } catch(e) {}
+            
+            let totalXP = 0;
+            let uniqueCount = dex.length;
+            let totalScans = 0;
+            let maxSwarm = 0;
+            let dangerousCount = 0;
+            let harmlessCount = 0;
+            let bugFamilies = [];
+
+            dex.forEach(item => {
+                const cnt = item.count || 1;
+                totalScans += cnt;
+                if (cnt > maxSwarm) maxSwarm = cnt;
+                
+                totalXP += 1500; 
+                totalXP += (cnt - 1) * 250; 
+
+                if (item.family) bugFamilies.push(item.family.toLowerCase());
+                
+                const danger = (item.danger_level || "").toLowerCase();
+                if (danger.includes('venomous') || danger.includes('high') || danger.includes('dangerous')) dangerousCount++;
+                if (danger.includes('harmless') || danger.includes('low') || danger.includes('none')) harmlessCount++;
+            });
+
+            const coleopteraCount = bugFamilies.filter(f => f.includes('beetle') || f.includes('coleoptera')).length;
+            const pollinatorCount = bugFamilies.filter(f => f.includes('bee') || f.includes('wasp') || f.includes('butterfly') || f.includes('hymenoptera') || f.includes('lepidoptera')).length;
+            const hemipteraCount = bugFamilies.filter(f => f.includes('bug') || f.includes('cicada') || f.includes('hemiptera')).length;
+
+            if (uniqueCount >= 1) totalXP += 500;    
+            if (uniqueCount >= 5) totalXP += 3000;   
+            if (uniqueCount >= 10) totalXP += 8000;  
+            if (uniqueCount >= 50) totalXP += 40000; 
+            if (uniqueCount >= 100) totalXP += 75000;
+
+            if (coleopteraCount >= 10) totalXP += 10000;
+            if (pollinatorCount >= 10) totalXP += 10000;
+            if (hemipteraCount >= 10) totalXP += 10000;
+
+            if (maxSwarm >= 10) totalXP += 8000;
+            if (maxSwarm >= 30) totalXP += 50000;
+
+            if (dangerousCount >= 5) totalXP += 12000;
+            if (harmlessCount >= 5) totalXP += 4000;
+
+            let historicDailyCompletions = [];
+            try { historicDailyCompletions = JSON.parse(localStorage.getItem('historicDailyCompletions')) || []; } catch(e) {}
+            totalXP += (historicDailyCompletions.length * 4000);
+
+            let calculatedLevel = 1;
+            let currentPool = totalXP;
+            
+            while (true) {
+                let requiredForNext = Math.round(100 * Math.pow(calculatedLevel, 1.5));
+                if (currentPool >= requiredForNext && calculatedLevel < 100) {
+                    currentPool -= requiredForNext;
+                    calculatedLevel++;
+                } else {
+                    break;
+                }
+            }
+
+            let levelFloorReq = Math.round(100 * Math.pow(calculatedLevel, 1.5));
+
+            return {
+                level: calculatedLevel,
+                currentLevelXP: currentPool,
+                nextLevelXPNeeded: levelFloorReq,
+                lifetimeXP: totalXP
+            };
+        }
+
+        function renderLevelScreen() {
+            const metrics = calculateProfileMetrics();
+            document.getElementById('lvlNumber').innerText = metrics.level;
+            document.getElementById('lvlXpText').innerText = `${metrics.currentLevelXP.toLocaleString()} / ${metrics.nextLevelXPNeeded.toLocaleString()} XP`;
+            document.getElementById('lvlTotalPoolText').innerText = `${metrics.lifetimeXP.toLocaleString()} XP`;
+            
+            const pct = Math.min((metrics.currentLevelXP / metrics.nextLevelXPNeeded) * 100, 100);
+            document.getElementById('lvlBar').style.width = pct + "%";
+
+            const trackContainer = document.getElementById('levelTrackContainer');
+            trackContainer.innerHTML = ''; 
+            const displayMaxLevel = 100; 
+            
+            for (let l = 1; l <= displayMaxLevel; l++) {
+                let xpReq = Math.round(100 * Math.pow(l, 1.5));
+                let nodeStatusClass = "locked";
+                let badgeIndicator = "🔒 Locked";
+                let progressDescription = `${xpReq.toLocaleString()} XP`;
+                
+                if (l < metrics.level) {
+                    nodeStatusClass = "completed";
+                    badgeIndicator = "✅ Cleared";
+                } else if (l === metrics.level) {
+                    nodeStatusClass = "current";
+                    badgeIndicator = "⚡ Active Tier";
+                    progressDescription = `${metrics.currentLevelXP.toLocaleString()} / ${xpReq.toLocaleString()} XP`;
+                }
+                
+                trackContainer.innerHTML += `
+                    <div class="track-node ${nodeStatusClass}">
+                        <div class="node-number">Level ${l}</div>
+                        <div class="node-info">
+                            <div style="font-weight: bold; color: ${l === metrics.level ? 'var(--gold)' : 'inherit'};">${badgeIndicator}</div>
+                            <div class="node-xp">${progressDescription}</div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            const activeScreen = document.getElementById(screenId);
+            if(activeScreen) activeScreen.classList.add('active');
+            
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active-tab'));
+            const targetTab = document.getElementById(`tab_${screenId}`);
+            if(targetTab) targetTab.classList.add('active-tab');
+
+            if (screenId === 'dexScreen') {
+                document.getElementById('dexSearch').value = "";
+                loadDex();
+            }
+            if (screenId === 'dailyScreen') renderDailyChallenge();
+            if (screenId === 'mapScreen') loadMap();
+            if (screenId === 'levelScreen') renderLevelScreen();
+            if (screenId === 'badgeScreen') loadBadges();
+        }
+
+        function renderDailyChallenge() {
+            const challenge = getDailyTarget();
+            document.getElementById('targetGenusDisplay').innerText = challenge.genus;
+            fetchChallengeImage(challenge.genus);
+
+            let completions = [];
+            try { completions = JSON.parse(localStorage.getItem('historicDailyCompletions')) || []; } catch(e) {}
+            
+            const badge = document.getElementById('challengeStatusBadge');
+            if (completions.includes(challenge.dateStamp)) {
+                badge.innerText = "✅ Completed Today!";
+                badge.style.color = "var(--primary)";
+            } else {
+                badge.innerText = "⚠️ Challenge Active";
+                badge.style.color = "#ffb703";
+            }
+        }
+
+        function cleanString(str) {
+            if(!str) return "";
+            return str.toLowerCase()
+                      .replace(/\([^)]*\)/g, "")
+                      .replace(/genus|family|species/gi, "")
+                      .replace(/[^a-z0-9]/gi, "")
+                      .trim();
+        }
+
+        function clearAllData() {
+            if(confirm("Wipe everything permanently?")) {
+                localStorage.removeItem('guestBugDex');
+                localStorage.removeItem('historicDailyCompletions');
+                alert("Database wiped successfully!");
+                if(mapInstance) { mapInstance.remove(); mapInstance = null; }
+                showScreen('scannerScreen');
+                document.getElementById('imagePreview').style.display = 'none';
+                document.getElementById('analyzeBtn').style.display = 'none';
+                document.getElementById('selectionInterface').style.display = 'none';
+                document.getElementById('results').style.display = 'none';
+                document.getElementById('dropZone').style.display = 'block';
+                document.getElementById('fileInput').value = "";
+                base64Image = "";
+                fullImageURI = "";
+                currentImageHash = "";
+            }
+        }
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    fullImageURI = event.target.result; 
+                    currentImageHash = generateStringHash(fullImageURI);
+                    document.getElementById('imagePreview').src = fullImageURI;
+                    document.getElementById('imagePreview').style.display = 'block';
+                    document.getElementById('dropZone').style.display = 'none';
+                    document.getElementById('analyzeBtn').style.display = 'block';
+                    
+                    if (event.target.result.includes(',')) {
+                        base64Image = event.target.result.split(',')[1];
+                    } else {
+                        base64Image = event.target.result;
+                    }
+                    
+                    document.getElementById('results').style.display = 'none';
+                    document.getElementById('selectionInterface').style.display = 'none';
+                    
+                    document.getElementById('extraQuestionInput').value = "";
+                    document.getElementById('manualOverrideInput').value = "";
+                    document.getElementById('extraQuestionResponse').style.display = "none";
+                    document.getElementById('extraQuestionResponse').innerText = "";
+
+                    if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(pos => {
+                            currentCoordinates = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                        });
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        document.getElementById('analyzeBtn').addEventListener('click', () => executeScan());
+
+        async function executeScan() {
+            if (!base64Image) return;
+
+            let localDex = [];
+            try { localDex = JSON.parse(localStorage.getItem('guestBugDex')) || []; } catch(e) {}
+
+            let duplicateBug = localDex.find(item => item && item.imageHashes && item.imageHashes.includes(currentImageHash));
+            if (duplicateBug) {
+                renderDetailsOnly(duplicateBug);
+                return;
+            }
+
+            const btn = document.getElementById('analyzeBtn');
+            btn.disabled = true;
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('selectionInterface').style.display = 'none';
+            document.getElementById('results').style.display = 'none';
+
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+                
+                const promptText = "Analyze this insect image. Return ONLY a valid JSON object. Do not include any word explanation or markdown formatting outside the JSON. The JSON must contain an array called \"options\" with exactly 3 elements. Each element inside \"options\" must contain \"genus\" (string) and \"confidence\" (integer value percentage out of 100, e.g. 85). Sort the choices from highest confidence to lowest.";
+
+                const sanitizedBase64 = base64Image.replace(/^data:image\/[a-z]+;base64,/, "").trim();
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ 
+                            parts: [
+                                { text: promptText }, 
+                                { 
+                                    inline_data: { 
+                                        mime_type: "image/jpeg", 
+                                        data: sanitizedBase64 
+                                    } 
+                                }
+                            ] 
+                        }]
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API rejected request with status ${response.status}`);
+                }
+
+                const resData = await response.json();
+                let rawText = resData.candidates[0].content.parts[0].text;
+                let cleanTxt = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+                
+                const analysis = JSON.parse(cleanTxt);
+
+                if (!analysis.options || analysis.options.length === 0) {
+                    throw new Error("No visible choices returned.");
+                }
+
+                const topChoice = analysis.options[0];
+
+                if (topChoice.confidence >= 80) {
+                    await finalizeInsectSelection(topChoice.genus, false);
+                    return;
+                }
+
+                const matrix = document.getElementById('selectionMatrix');
+                matrix.innerHTML = "";
+
+                for (let opt of analysis.options) {
+                    const card = document.createElement('div');
+                    card.className = "selection-card";
+                    
+                    const imgPlaceholder = document.createElement('img');
+                    imgPlaceholder.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='50' height='50'><rect width='50' height='50' fill='#eee'/></svg>";
+                    
+                    fetchWikipediaImage(opt.genus).then(src => { imgPlaceholder.src = src; });
+
+                    card.innerHTML = `
+                        <div class="selection-details">
+                            <span class="selection-title">${opt.genus}</span>
+                        </div>
+                        <span class="selection-pct">${opt.confidence}% match</span>
+                    `;
+                    card.prepend(imgPlaceholder);
+                    
+                    card.onclick = () => finalizeInsectSelection(opt.genus, false);
+                    matrix.appendChild(card);
+                }
+
+                document.getElementById('selectionInterface').style.display = 'block';
+                document.getElementById('loading').style.display = 'none';
+
+            } catch (err) {
+                console.error(err);
+                alert("Scan Failed: " + err.message);
+                btn.disabled = false;
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function renderDetailsOnly(bugItem) {
+            document.getElementById('scanStatusMsg').innerText = "Displaying Existing Photo Record Match";
+            document.getElementById('scanStatusMsg').style.color = "#666";
+            
+            document.getElementById('resGenus').innerText = bugItem.genus;
+            document.getElementById('resFamily').innerText = bugItem.family || "-";
+            document.getElementById('resDist').innerText = bugItem.distribution || "-";
+            document.getElementById('resLifeCycle').innerText = bugItem.life_cycle || "-";
+            document.getElementById('resBehavior').innerText = bugItem.behavior || "-";
+            document.getElementById('resDiet').innerText = bugItem.diet || "-";
+            document.getElementById('resDanger').innerText = bugItem.danger_level || "-";
+            document.getElementById('resFunFacts').innerText = bugItem.fun_facts || "-";
+            
+            if(document.getElementById('shareSightingBtn')) {
+                document.getElementById('shareSightingBtn').onclick = () => shareSpecies(bugItem.genus, bugItem.family);
+            }
+
+            document.getElementById('results').style.display = 'block';
+            document.getElementById('selectionInterface').style.display = 'none';
+            document.getElementById('loading').style.display = 'none';
+            
+            const btn = document.getElementById('analyzeBtn');
+            btn.disabled = false;
+            btn.innerText = "Scan Another Bug";
+            document.getElementById('dropZone').style.display = 'block';
+        }
+
+        async function finalizeInsectSelection(selectedGenus, isDuplicateScan = false) {
+            document.getElementById('selectionInterface').style.display = 'none';
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('loading').innerText = `Hydrating detailed data log profiles for ${selectedGenus}... 🔬`;
+
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+                const detailPrompt = `Provide comprehensive taxonomic details for the insect genus "${selectedGenus}". Return ONLY a raw JSON object with keys: "family", "distribution", "life_cycle", "behavior", "diet", "danger_level", "fun_facts". Make sure "fun_facts" acts as a descriptive overview summary of the insect. Keep facts short and readable.`;
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: detailPrompt }] }] })
+                });
+
+                const resData = await response.json();
+                let cleanTxt = resData.candidates[0].content.parts[0].text.replace(/```json/g, '').replace(/```/g, '').trim();
+                const bug = JSON.parse(cleanTxt);
+
+                const scannedFamily = bug.family || "Unknown Family";
+
+                document.getElementById('resGenus').innerText = selectedGenus;
+                document.getElementById('resFamily').innerText = scannedFamily;
+                document.getElementById('resDist').innerText = bug.distribution || "Unknown";
+                document.getElementById('resLifeCycle').innerText = bug.life_cycle || "Unknown";
+                document.getElementById('resBehavior').innerText = bug.behavior || "Unknown";
+                document.getElementById('resDiet').innerText = bug.diet || "Unknown";
+                document.getElementById('resDanger').innerText = bug.danger_level || "Unknown";
+                document.getElementById('resFunFacts').innerText = bug.fun_facts || "Unknown";
+
+                if(document.getElementById('shareSightingBtn')) {
+                    document.getElementById('shareSightingBtn').onclick = () => shareSpecies(selectedGenus, scannedFamily);
+                }
+
+                let localDex = [];
+                try { localDex = JSON.parse(localStorage.getItem('guestBugDex')) || []; } catch(e) {}
+
+                let existingIndex = localDex.findIndex(item => item && cleanString(item.genus) === cleanString(selectedGenus));
+                const locationStamp = currentCoordinates ? { ...currentCoordinates } : null;
+                const currentTime = new Date();
+
+                if (existingIndex !== -1) {
+                    localDex[existingIndex].count = (localDex[existingIndex].count || 1) + 1;
+                    if (!localDex[existingIndex].imageHashes) localDex[existingIndex].imageHashes = [];
+                    
+                    if (!localDex[existingIndex].imageHashes.includes(currentImageHash)) {
+                        localDex[existingIndex].images.unshift(fullImageURI); 
+                        localDex[existingIndex].imageHashes.push(currentImageHash);
+                    }
+                    localDex[existingIndex].timestamps.push(currentTime.toISOString());
+                    if(locationStamp) localDex[existingIndex].locations.push(locationStamp);
+                    
+                    document.getElementById('scanStatusMsg').innerText = "Existing Species Discovered Again!";
+                    document.getElementById('scanStatusMsg').style.color = "#0077b6";
+                } else {
+                    const insectRecord = {
+                        id: 'bug_' + Date.now(),
+                        genus: selectedGenus,
+                        family: scannedFamily,
+                        distribution: bug.distribution || "Unknown",
+                        life_cycle: bug.life_cycle || "Unknown",
+                        behavior: bug.behavior || "Unknown",
+                        diet: bug.diet || "Unknown",
+                        danger_level: bug.danger_level || "Unknown",
+                        fun_facts: bug.fun_facts || "Unknown",
+                        images: [fullImageURI], 
+                        imageHashes: [currentImageHash],
+                        count: 1, 
+                        timestamps: [currentTime.toISOString()],
+                        locations: locationStamp ? [locationStamp] : []
+                    };
+                    localDex.unshift(insectRecord);
+                    document.getElementById('scanStatusMsg').innerText = "✨ New Species Logged! ✨";
+                    document.getElementById('scanStatusMsg').style.color = "var(--primary)";
+                }
+
+                const challenge = getDailyTarget();
+                if (cleanString(selectedGenus) === cleanString(challenge.genus)) {
+                    let completions = [];
+                    try { completions = JSON.parse(localStorage.getItem('historicDailyCompletions')) || []; } catch(e) {}
+                    if (!completions.includes(challenge.dateStamp)) {
+                        completions.push(challenge.dateStamp);
+                        localStorage.setItem('historicDailyCompletions', JSON.stringify(completions));
+                        alert("🎉 Daily Challenge Bounty Claimed! +4,000 XP awarded.");
+                    }
+                }
+
+                localStorage.setItem('guestBugDex', JSON.stringify(localDex));
+                document.getElementById('results').style.display = 'block';
+
+            } catch (e) {
+                alert("Failed fetching detailed attributes: " + e.message);
+            } finally {
+                const btn = document.getElementById('analyzeBtn');
+                btn.disabled = false;
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('loading').innerText = "Consulting the database... 🔍";
+                btn.innerText = "Scan Another Bug";
+                document.getElementById('dropZone').style.display = 'block';
+            }
+        }
+        
+        function shareSpecies(genus, family) {
+            const shareText = `Check out this insect I found on BugDex! It's a ${genus} (Family: ${family}).`;
+            if (navigator.share) {
+                navigator.share({ title: 'BugDex Sighting', text: shareText }).catch((err) => console.error(err));
+            } else {
+                navigator.clipboard.writeText(shareText).then(() => {
+                    alert('Sighting info copied to clipboard!');
+                }).catch(err => {
+                    alert(`Share this: "${shareText}"`);
+                });
+            }
+        }
+
+        // --- CUSTOM FOLLOW-UP QUESTION UTILITY ---
+        async function askFollowUpQuestion() {
+            const input = document.getElementById('extraQuestionInput');
+            const responseDiv = document.getElementById('extraQuestionResponse');
+            const questionText = input.value.trim();
+            if (!questionText) return;
+
+            const currentGenus = document.getElementById('resGenus').innerText;
+            responseDiv.style.display = "block";
+            responseDiv.innerText = "Consulting advanced databases... 🔍";
+            
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+                const completePrompt = `Regarding the insect genus "${currentGenus}", provide a clear, concise biological answer to this question: "${questionText}"`;
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: completePrompt }] }] })
+                });
+
+                if (!response.ok) throw new Error("Support system link broken.");
+                const data = await response.json();
+                responseDiv.innerText = data.candidates[0].content.parts[0].text;
+            } catch(err) {
+                responseDiv.innerText = "Error pulling database records: " + err.message;
+            }
+        }
+
+        // --- MANUAL GENUS RE-ASSIGNMENT OVERRIDE ---
+        async function applyManualOverride() {
+            const input = document.getElementById('manualOverrideInput');
+            const forcedGenus = input.value.trim();
+            
+            // If the user leaves it blank, trigger the rescan logic
+            if (!forcedGenus) {
+                if (confirm("Input is blank. Do you want to delete this specific log and rescan the image for a different result?")) {
+                    let localDex = [];
+                    try { localDex = JSON.parse(localStorage.getItem('guestBugDex')) || []; } catch(e) {}
+                    
+                    // Scrub the current image hash from the database so executeScan doesn't short-circuit
+                    localDex = localDex.map(item => {
+                        if (item && item.imageHashes) {
+                            item.imageHashes = item.imageHashes.filter(h => h !== currentImageHash);
+                            item.images = item.images.filter(img => img !== fullImageURI);
+                        }
+                        return item;
+                    }).filter(item => item && item.imageHashes && item.imageHashes.length > 0);
+                    
+                    localStorage.setItem('guestBugDex', JSON.stringify(localDex));
+                    
+                    // Fire off the scan again
+                    executeScan();
+                }
+                return; // Stop the override process here
+            }
+            
+            // Standard Override Logic if a name was provided
+            if (confirm(`Change this entry's logged mapping to "${forcedGenus}" and pull custom taxonomy?`)) {
+                let localDex = [];
+                try { localDex = JSON.parse(localStorage.getItem('guestBugDex')) || []; } catch(e) {}
+                
+                localDex = localDex.map(item => {
+                    if (item && item.imageHashes) {
+                        item.imageHashes = item.imageHashes.filter(h => h !== currentImageHash);
+                        item.images = item.images.filter(img => img !== fullImageURI);
+                    }
+                    return item;
+                }).filter(item => item && item.imageHashes && item.imageHashes.length > 0);
+                
+                localStorage.setItem('guestBugDex', JSON.stringify(localDex));
+
+                await finalizeInsectSelection(forcedGenus, false);
+                input.value = "";
+            }
+        }
+
+        function toggleDexDropdown(id) {
+            const el = document.getElementById(`drop_${id}`);
+            if(el) el.classList.toggle('open');
+        }
+
+        function filterDex() {
+            const query = document.getElementById('dexSearch').value.toLowerCase().trim();
+            const cards = document.querySelectorAll('#dexContainer .dex-card');
+            let visibleCount = 0;
+
+            cards.forEach(card => {
+                const textContent = card.getAttribute('data-search-tag');
+                if (textContent && textContent.includes(query)) {
+                    card.style.display = "block";
+                    visibleCount++;
+                } else {
+                    card.style.display = "none";
+                }
+            });
+
+            const fallbackEl = document.getElementById('dexEmptyFallback');
+            if (visibleCount === 0 && cards.length > 0) {
+                if(!fallbackEl) {
+                    const msg = document.createElement('p');
+                    msg.id = "dexEmptyFallback";
+                    msg.style.textAlign = "center";
+                    msg.style.color = "#666";
+                    msg.innerText = "No matching insects found in your Dex.";
+                    document.getElementById('dexContainer').appendChild(msg);
+                }
+            } else if (fallbackEl) {
+                fallbackEl.remove();
+            }
+        }
+
+        function loadDex() {
+            const container = document.getElementById('dexContainer');
+            if(!container) return;
+            
+            let localDex = [];
+            try { localDex = JSON.parse(localStorage.getItem('guestBugDex')) || []; } catch(e) {}
+
+            document.getElementById('uniqueCounter').innerText = localDex.length;
+            container.innerHTML = "";
+
+            if (localDex.length === 0) {
+                container.innerHTML = "<p style='text-align:center;'>Your Dex is empty. Start scanning!</p>";
+                return;
+            }
+
+            localDex.forEach(item => {
+                if(!item) return;
+                const safeId = item.id || 'bug_' + Math.random();
+                let imageGalleryHTML = "";
+                const imgs = Array.isArray(item.images) ? item.images : [];
+                imgs.forEach(imgData => {
+                    if(imgData) imageGalleryHTML += `<img src="${imgData}" alt="${item.genus || 'bug'}">`;
+                });
+
+                const searchTag = `${(item.genus || '').toLowerCase()} ${(item.family || '').toLowerCase()}`;
+
+                container.innerHTML += `
+                    <div class="dex-card" data-search-tag="${searchTag}">
+                        <div class="dex-header-row" onclick="toggleDexDropdown('${safeId}')">
+                            <div class="gallery-wrapper">${imageGalleryHTML}</div>
+                            <div class="dex-summary-info">
+                                <h3>${item.genus || 'Unknown'}</h3>
+                                <div class="dex-meta">
+                                    <b>Family:</b> ${item.family || 'Unknown'}<br>
+                                    <span class="bug-counter">Found: ${item.count || 1}</span><br>
+                                    <span style="color:var(--secondary); font-size:0.75rem;">▶ Click to toggle complete info</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="drop_${safeId}" class="dex-dropdown-content">
+                            <div class="extended-item"><b>Distribution</b><br>${item.distribution || 'Unknown'}</div>
+                            <div class="extended-item"><b>Life Cycle</b><br>${item.life_cycle || 'Unknown'}</div>
+                            <div class="extended-item"><b>Behavior</b><br>${item.behavior || 'Unknown'}</div>
+                            <div class="extended-item"><b>Diet</b><br>${item.diet || 'Unknown'}</div>
+                            <div class="extended-item"><b>Danger Level</b><br>${item.danger_level || 'Unknown'}</div>
+                            <div class="extended-item"><b>Fun Facts</b><br>${item.fun_facts || 'Unknown'}</div>
+                            <button class="btn btn-share" style="width:auto; margin-top: 15px;" onclick="shareSpecies('${item.genus}', '${item.family}')">Share Species 🔗</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function loadMap() {
+            let localDex = [];
+            try { localDex = JSON.parse(localStorage.getItem('guestBugDex')) || []; } catch(e) {}
+
+            setTimeout(() => {
+                if (mapInstance) {
+                    mapInstance.remove();
+                    mapInstance = null;
+                }
+                
+                let centerLat = 39.8283;
+                let centerLng = -98.5795;
+                let validLocationsFound = [];
+
+                localDex.forEach(bug => {
+                    if(bug.locations && Array.isArray(bug.locations)) {
+                        bug.locations.forEach(loc => {
+                            if(loc && loc.lat && loc.lng) {
+                                validLocationsFound.push({ lat: loc.lat, lng: loc.lng, title: bug.genus });
+                            }
+                        });
+                    }
+                });
+
+                if(validLocationsFound.length > 0) {
+                    centerLat = validLocationsFound[0].lat;
+                    centerLng = validLocationsFound[0].lng;
+                } else if(currentCoordinates) {
+                    centerLat = currentCoordinates.lat;
+                    centerLng = currentCoordinates.lng;
+                }
+
+                mapInstance = L.map('dexMap').setView([centerLat, centerLng], validLocationsFound.length > 0 ? 11 : 3);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap contributors'
+                }).addTo(mapInstance);
+
+                validLocationsFound.forEach(pin => {
+                    L.marker([pin.lat, pin.lng]).addTo(mapInstance)
+                     .bindPopup(`<b>Sighting Logged:</b><br>${pin.title}`);
+                });
+            }, 50);
+        }
+
+        function loadBadges() {
+            const container = document.getElementById('badgeContainer');
+            if(!container) return;
+            container.innerHTML = '';
+
+            let dex = [];
+            try { dex = JSON.parse(localStorage.getItem('guestBugDex')) || []; } catch(e) {}
+
+            const uniqueCount = dex.length;
+            let totalScans = 0;
+            let maxSwarm = 0;
+            let dangerousCount = 0;
+            let harmlessCount = 0;
+            let bugFamilies = [];
+
+            dex.forEach(item => {
+                if(!item) return;
+                const cnt = item.count || 1;
+                totalScans += cnt;
+                if (cnt > maxSwarm) maxSwarm = cnt;
+                if(item.family) bugFamilies.push(item.family.toLowerCase());
+
+                const danger = (item.danger_level || "").toLowerCase();
+                if (danger.includes('venomous') || danger.includes('high') || danger.includes('dangerous')) dangerousCount++;
+                if (danger.includes('harmless') || danger.includes('low') || danger.includes('none')) harmlessCount++;
+            });
+
+            const coleopteraCount = bugFamilies.filter(f => f.includes('beetle') || f.includes('coleoptera')).length;
+            const pollinatorCount = bugFamilies.filter(f => f.includes('bee') || f.includes('wasp') || f.includes('butterfly') || f.includes('hymenoptera') || f.includes('lepidoptera')).length;
+            const hemipteraCount = bugFamilies.filter(f => f.includes('bug') || f.includes('cicada') || f.includes('hemiptera')).length;
+
+            const badges = [
+                { title: 'First Catch', desc: 'Scan 1 insect', icon: '🐛', tier: 'bronze-tier', unlocked: uniqueCount >= 1, progress: `${Math.min(uniqueCount, 1)}/1` },
+                { title: 'Gentle Giant', desc: 'Log 5 harmless bugs', icon: '🍃', tier: 'bronze-tier', unlocked: harmlessCount >= 5, progress: `${Math.min(harmlessCount, 5)}/5` },
+                
+                { title: 'Novice', desc: 'Scan 5 insects', icon: '🦋', tier: 'silver-tier', unlocked: uniqueCount >= 5, progress: `${Math.min(uniqueCount, 5)}/5` },
+                { title: 'Explorer', desc: 'Scan 10 insects', icon: '🔍', tier: 'silver-tier', unlocked: uniqueCount >= 10, progress: `${Math.min(uniqueCount, 10)}/10` },
+                { title: 'Coleoptera', desc: 'Find 10 beetles', icon: '🪲', tier: 'silver-tier', unlocked: coleopteraCount >= 10, progress: `${Math.min(coleopteraCount, 10)}/10` },
+                { title: 'Pollinator Pal', desc: 'Find 10 pollinators', icon: '🐝', tier: 'silver-tier', unlocked: pollinatorCount >= 10, progress: `${Math.min(pollinatorCount, 10)}/10` },
+                { title: 'Bug Hunter', desc: 'Find 10 true bugs', icon: '🐞', tier: 'silver-tier', unlocked: hemipteraCount >= 10, progress: `${Math.min(hemipteraCount, 10)}/10` },
+                { title: 'Infestation', desc: 'Scan same bug 10x', icon: '🔁', tier: 'silver-tier', unlocked: maxSwarm >= 10, progress: `${Math.min(maxSwarm, 10)}/10` },
+                { title: 'Living on Edge', desc: 'Log 5 dangerous bugs', icon: '☠️', tier: 'silver-tier', unlocked: dangerousCount >= 5, progress: `${Math.min(dangerousCount, 5)}/5` },
+
+                { title: 'Entomologist', desc: 'Scan 50 insects', icon: '🔬', tier: 'gold-tier', unlocked: uniqueCount >= 50, progress: `${Math.min(uniqueCount, 50)}/50` },
+                { title: 'Master', desc: 'Scan 100 insects', icon: '👑', tier: 'gold-tier', unlocked: uniqueCount >= 100, progress: `${Math.min(uniqueCount, 100)}/100` },
+                { title: 'Swarm Control', desc: 'Scan same bug 30x', icon: '🌪️', tier: 'gold-tier', unlocked: maxSwarm >= 30, progress: `${Math.min(maxSwarm, 30)}/30` }
+            ];
+
+            badges.forEach(b => {
+                const statusClass = b.unlocked ? `unlocked ${b.tier}` : '';
+                container.innerHTML += `
+                    <div class="badge-card ${statusClass}">
+                        <div class="badge-icon">${b.icon}</div>
+                        <div class="badge-title">${b.title}</div>
+                        <div class="badge-desc">${b.desc}</div>
+                        <span class="badge-progress">${b.progress}</span>
+                    </div>
+                `;
+            });
+        }
+    </script>
+</body>
+</html>
